@@ -129,6 +129,13 @@ class Executor:
                     if expression:
                         logger.info(f"从用户输入提取到计算表达式: {expression}")
                         params = {**params, "expression": expression}
+                # P2：calculator 的 expression 只接受纯数学表达式，调用前先做格式校验，
+                # 命中非法字符（如中文）时直接返回失败，避免把无效参数交给工具后再报错
+                if action == "calculator" and not self._is_valid_expression(
+                    params.get("expression", "")
+                ):
+                    logger.warning(f"calculator 参数格式错误，已拦截: {params.get('expression')!r}")
+                    return {"success": False, "result": "参数格式错误", "action": action}
                 kwargs = {
                     key: params[key]
                     for key in tool.parameters.get("properties", {})
@@ -174,6 +181,18 @@ class Executor:
             return ""
         match = re.search(r"[-+]?\d[\d\s.+\-*/()%]*\d", text)
         return match.group(0).strip() if match else ""
+
+    @staticmethod
+    def _is_valid_expression(expression: str) -> bool:
+        """
+        校验 calculator 的 expression 是否为纯数学表达式（P2）
+
+        只允许数字、+ - * / ( ) . 和空格；包含中文等其他字符时返回 False，
+        由调用方直接返回「参数格式错误」，避免无效调用。
+        """
+        if not expression or not expression.strip():
+            return False
+        return re.fullmatch(r"[\d+\-*/().\s]+", expression) is not None
 
     @staticmethod
     def _latest_user_message(memory_context: List[Dict] = None) -> str:

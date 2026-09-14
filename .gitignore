@@ -20,6 +20,9 @@ data/vectors/
 *.npy
 *.bin
 
+# 用户画像（运行时生成，含测试用户数据，不入库）
+data/memory/user_profiles.json
+
 # 日志
 logs/
 *.log

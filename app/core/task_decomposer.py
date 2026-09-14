@@ -11,6 +11,20 @@ from app.utils.logger import logger
 MULTI_INTENT_KEYWORDS = ["对比", "然后", "分别", "以及"]
 
 
+# 工具的完整签名说明（P1 / P3）：拆解时把签名明确写进提示词，
+# 避免大模型把中文句子传给 calculator、或给 summarize_document 传错参数。
+# 未收录的工具会退化成「名称 + 描述」，因此新增工具时可在此补充签名。
+TOOL_SIGNATURES = {
+    "rag_query": 'rag_query(question: str)：查询企业知识库，question 是自然语言问题',
+    "calculator": 'calculator(expression: str)：只接受纯数学表达式，如 "128*7"、"5+3"；'
+                  '只能包含数字和运算符 + - * / ( ) . 与空格，绝对不能包含中文',
+    "summarize_document": 'summarize_document(doc_name: str)：需要文档名（知识库里条目的 source），不是文本内容',
+    "multi_doc_search": 'multi_doc_search(query: str, top_k: int = 5)：跨多份文档检索，query 是检索关键词',
+    "extract_structured": 'extract_structured(text: str, fields: str)：text 是要抽取的原文，fields 是逗号分隔的字段名',
+    "http_request": 'http_request(url: str, method: str = "GET")：发起 HTTP 请求',
+}
+
+
 class TaskDecomposer:
     """
     任务分解器：把包含多个诉求的复杂问题拆成可顺序执行的子任务
@@ -49,20 +63,31 @@ class TaskDecomposer:
             大模型不可用或解析失败时返回 None，由上层回退到单步规划。
         """
         tools_desc = "\n".join(
-            [f"- {t['name']}: {t['description']}" for t in list_tools()]
+            [f"- {self._tool_signature(t)}" for t in list_tools()]
         )
 
         prompt = f"""你是一个任务分解器。请把用户的问题拆解成按顺序执行的子任务。
 
-可用工具：
+可用工具（括号里是参数签名，请严格按签名传参）：
 {tools_desc}
 
 拆解要求：
-1. 每个子任务只做一件事，按执行先后顺序排列
-2. action 必须从上面的工具名中选择，不要创造新工具名
-3. params 是该工具的入参，例如 rag_query 用 {{"question": "..."}}，calculator 用 {{"expression": "..."}}
-4. reason 用一句话说明为什么需要这一步
-5. 最多拆成 {self.max_subtasks} 个子任务；如果问题本身很简单，就只返回 1 个子任务
+1. 子任务数量优先控制在 2~3 个；只有确实需要更多步骤时才增加，最多不超过 {self.max_subtasks} 个
+2. 先数清楚用户有几个不同的意图，每个不同意图对应一个子任务
+   （例如「对比年假和调休的区别」是意图一，「休5天需要提前几天申请」是意图二，应拆成 2 个子任务）
+3. 只有当两个诉求本质上是同一件事、一次检索就能一起回答时，才合并成一个子任务；
+   不要为了少几步就把所有诉求合并成一个子任务，也不要反复检索同一个问题
+4. 每个子任务只做一件事，按执行先后顺序排列
+5. action 必须从上面的工具名中选择，不要创造新工具名
+6. params 必须严格符合工具签名：
+   - rag_query 用 {{"question": "自然语言问题"}}
+   - calculator 的 expression 只能是数字和运算符（+ - * / ( ) . 和空格），例如 "128*7"、"5+3"；
+     expression 不能包含中文，也不能把自然语言句子写进 expression
+   - summarize_document 需要 doc_name（文档名），不要传 content / text
+7. 每个子任务的 params.question 必须自包含：保留原问题里的关键限定词，不要因为拆解而丢失上下文
+   （例如要写成「休5天年假需要提前几天申请」，不能写成「休5天需要提前几天申请」——后者检索时会跑偏）
+8. reason 用一句话说明为什么需要这一步
+9. 如果问题本身很简单（只有一个意图），就只返回 1 个子任务
 
 用户问题：{user_input}
 
@@ -87,6 +112,17 @@ class TaskDecomposer:
         logger.info(f"任务分解完成，共 {len(subtasks)} 个子任务")
         return subtasks
 
+    @staticmethod
+    def _tool_signature(tool: Dict[str, Any]) -> str:
+        """
+        生成工具的签名说明（P3）
+
+        优先使用预置的完整签名（含参数类型与取值约束），未收录的工具退化为
+        「名称: 描述」，保证新增工具时不会与工具注册表脱节。
+        """
+        name = tool.get("name", "")
+        return TOOL_SIGNATURES.get(name) or f"{name}: {tool.get('description', '')}"
+
     def _parse(self, raw: str) -> Optional[List[Dict[str, Any]]]:
         """
         从大模型返回文本中解析子任务列表
@@ -108,16 +144,24 @@ class TaskDecomposer:
             return None
 
         subtasks: List[Dict[str, Any]] = []
+        seen_signatures = set()
         for index, item in enumerate(data, 1):
             if not isinstance(item, dict):
                 continue
             action = item.get("action")
             if not action:
                 continue
+            params = item.get("params") or {}
+            # P1：action 与参数完全相同的子任务属于重复拆分，直接合并（大模型偶发同义重复）
+            signature = (action, json.dumps(params, sort_keys=True, ensure_ascii=False))
+            if signature in seen_signatures:
+                logger.warning(f"子任务 {index}（action={action}）与前面的子任务重复，已合并跳过")
+                continue
+            seen_signatures.add(signature)
             subtasks.append({
                 "step": item.get("step") or index,
                 "action": action,
-                "params": item.get("params") or {},
+                "params": params,
                 "reason": item.get("reason", ""),
             })
             if len(subtasks) >= self.max_subtasks:
