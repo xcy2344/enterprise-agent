@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import numpy as np
 import faiss
 from typing import List, Dict, Any
@@ -106,7 +107,8 @@ class VectorStore:
             top_k: 返回结果数量，默认取 Config.TOP_K
 
         返回：
-            列表，每个元素包含 text、source、score
+            列表，每个元素包含 text、source、score、distance
+            score 为余弦相似度（0~1，越大越相关），distance 为 L2 距离（欧氏距离）
         """
         if top_k is None:
             top_k = Config.TOP_K
@@ -129,13 +131,29 @@ class VectorStore:
         results = []
         for i, idx in enumerate(indices[0]):
             if idx < len(self.metadata):
+                squared_distance = float(distances[0][i])
                 results.append({
                     "text": self.metadata[idx]["text"],
                     "source": self.metadata[idx]["source"],
-                    "score": float(distances[0][i])
+                    "score": self._to_similarity(squared_distance),
+                    "distance": math.sqrt(squared_distance)
                 })
 
+        # 按相似度从高到低排序，最高分即检索质量评估的依据
+        results.sort(key=lambda item: item["score"], reverse=True)
         return results
+
+    @staticmethod
+    def _to_similarity(squared_distance: float) -> float:
+        """
+        把 FAISS 返回的平方 L2 距离换算成余弦相似度（0~1，越大越相关）
+
+        Embedding 接口返回的是单位向量（||v|| = 1），此时
+        ||a - b||^2 = 2 - 2·cos(a, b)，而 IndexFlatL2 返回的正是 ||a - b||^2，
+        因此 cos = 1 - squared_distance / 2
+        """
+        similarity = 1.0 - squared_distance / 2.0
+        return max(0.0, min(1.0, similarity))
 
     def _save(self):
         """

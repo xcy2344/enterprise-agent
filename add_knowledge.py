@@ -26,14 +26,14 @@ added = 0
 skipped = 0
 for item in new_items:
     if item["text"] in existing_texts:
-        print(f"⏭️ 跳过已存在: {item['text'][:30]}...")
+        print(f"[SKIP] 跳过已存在: {item['text'][:30]}...")
         skipped += 1
         continue
     resp = requests.post(url, json=item)
     if resp.status_code == 200:
-        print(f"✅ 添加成功: {item['text'][:30]}...")
+        print(f"[OK] 添加成功: {item['text'][:30]}...")
         added += 1
     else:
-        print(f"❌ 添加失败: {item['text'][:30]}...")
+        print(f"[ERROR] 添加失败: {item['text'][:30]}...")
 
-print(f"\n📊 完成：新增 {added} 条，跳过 {skipped} 条（已存在）")
+print(f"\n[INFO] 完成：新增 {added} 条，跳过 {skipped} 条（已存在）")

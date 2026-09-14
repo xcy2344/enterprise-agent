@@ -35,14 +35,14 @@ def load_knowledge():
     results = vector_store.search(test_query, top_k=2)
 
     print("\n" + "=" * 50)
-    print(f"🔍 搜索测试：{test_query}")
+    print(f"[SEARCH] 搜索测试：{test_query}")
     print("=" * 50)
 
     if results:
         for i, r in enumerate(results, 1):
             print(f"\n【结果 {i}】来源: {r['source']}")
             print(f"内容: {r['text'][:80]}...")
-            print(f"距离: {r['score']:.4f}")
+            print(f"相似度: {r['score']:.4f}（距离: {r['distance']:.4f}）")
     else:
         print("没有找到相关结果")
 

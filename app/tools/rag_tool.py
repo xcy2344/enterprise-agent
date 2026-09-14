@@ -1,3 +1,5 @@
+from typing import Any, Dict, List, Optional
+
 from app.tools.base_tool import BaseTool
 from app.core.rag import RAGService
 
@@ -29,6 +31,6 @@ class RAGTool(BaseTool):
             "required": ["question"]
         }
 
-    def execute(self, question: str) -> dict:
-        answer = self._rag.answer(question)
+    def execute(self, question: str, memory_context: Optional[List[Dict[str, Any]]] = None) -> dict:
+        answer = self._rag.answer(question, memory_context)
         return {"success": True, "result": answer}

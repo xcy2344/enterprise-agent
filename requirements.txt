@@ -6,3 +6,6 @@ pypdf==5.1.0
 python-multipart==0.0.20
 requests==2.31.0
 numpy>=1.24.0
+faiss-cpu==1.15.0
+fastapi-mcp>=0.4.0
+mcp[cli]>=1.0.0

@@ -34,7 +34,7 @@ def reset():
 
     vector_store.add([i["text"] for i in new_items], [i["source"] for i in new_items])
     logger.info(f"知识库重建完成，共 {vector_store.count()} 条记录")
-    print(f"\n✅ 完成！知识库当前总数: {vector_store.count()} 条")
+    print(f"\n[OK] 完成！知识库当前总数: {vector_store.count()} 条")
 
 if __name__ == "__main__":
     reset()
