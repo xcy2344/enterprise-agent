@@ -49,8 +49,8 @@
 | 层次 | 选型 |
 | --- | --- |
 | 后端 | Python 3.11+（本机实测 3.14.5）+ FastAPI + Uvicorn |
-| 大模型 | 通义千问 `qwen-turbo`（DashScope SDK，含指数退避重试与降级） |
-| 向量检索 | FAISS（IndexFlatL2）+ 百炼 `text-embedding-v2`（1536 维）+ 余弦相似度阈值兜底 |
+| 大模型 | 通义千问 `qwen-flash`（DashScope SDK，含指数退避重试与降级） |
+| 向量检索 | FAISS（IndexFlatL2）+ 百炼 `text-embedding-v4`（1024 维）+ 余弦相似度阈值兜底 |
 | Agent 架构 | 自建 Planner-Executor-Reflector 框架（ReAct 思路），不依赖 LangChain |
 | 记忆 | 短期记忆（内存，含摘要压缩）+ 长期画像（`data/memory/user_profiles.json`）+ Trace |
 | MCP | FastMCP（mcp 1.x）+ 自研 MCP 服务器，同时支持 SSE 与 stdio |
@@ -410,23 +410,23 @@ SSE 方式（写入 `claude_desktop_config.json`）：
 | 配置 | 默认值 | 说明 |
 | --- | --- | --- |
 | `DASHSCOPE_API_KEY` | 无（必填） | 从 `.env` 读取，缺失时启动即报错退出 |
-| `LLM_MODEL` | `qwen-turbo` | 生成模型 |
+| `LLM_MODEL` | `qwen-flash` | 生成模型 |
 | `MAX_RETRIES` | 2 | 大模型调用失败后的最大重试次数（总尝试 3 次） |
 | `RETRY_DELAY` | 1 | 重试基础间隔（秒），指数退避：1 → 2 → 4 |
 | `VECTOR_PERSIST_DIR` | `./data/vectors` | FAISS 索引与元数据目录 |
 | `TOP_K` | 3 | 每次检索返回的条数 |
-| `RAG_SCORE_THRESHOLD` | 0.30 | 最高余弦相似度低于此值即判定知识库外问题，直接拒答 |
+| `RAG_SCORE_THRESHOLD` | 0.48 | 最高余弦相似度低于此值即判定知识库外问题，直接拒答 |
 | `MEMORY_MAX_TURNS` | 10 | 短期记忆保留的对话轮数（1 轮 = 用户 + 助手各 1 条） |
 | `SUMMARY_TRIGGER_TURNS` | 15 | 达到该轮数触发摘要压缩，压缩最早的 5 轮 |
 | `SESSION_CACHE_MAX_SIZE` | 100 | 会话级记忆缓存上限，超出按 LRU 淘汰 |
 | `ENABLE_TASK_DECOMPOSITION` | `True` | 是否开启多步任务分解（关闭后所有问题都按单步处理） |
 | `MAX_SUBTASKS` | 5 | 单个问题最多拆解的子任务数量 |
 | `MCP_AUTH_TOKEN` | 空 | MCP 服务器 Bearer Token，为空时跳过鉴权（仅本地开发） |
-| `EMBEDDING_MODEL` | `text-embedding-v2` | 向量化模型 |
-| `EMBEDDING_DIMENSION` | 1536 | 向量维度（与 FAISS 索引一致） |
+| `EMBEDDING_MODEL` | `text-embedding-v4` | 向量化模型 |
+| `EMBEDDING_DIMENSION` | 1024 | 向量维度（与 FAISS 索引一致） |
 | `KNOWLEDGE_DIR` | `./data/knowledge` | 知识源文件目录 |
 
-关于 `RAG_SCORE_THRESHOLD`：`score` 是**余弦相似度**，不是「相关概率」。实测（`text-embedding-v2` + 当前知识库）知识库内问题最高相似度约 0.39~0.77，知识库外问题（如「今天天气怎么样」）约 0.05~0.24，故取 0.30。调整阈值请先看检索日志里打印的实际分布，日志会输出最高分与阈值。
+关于 `RAG_SCORE_THRESHOLD`：`score` 是**余弦相似度**，不是「相关概率」。实测（`text-embedding-v4` + 当前知识库）知识库内问题最高相似度约 0.58~0.82，知识库外问题（如「今天天气怎么样」）约 0.19~0.38，故取 0.48。调整阈值请先看检索日志里打印的实际分布，日志会输出最高分与阈值。
 
 ## 关键设计决策
 
@@ -454,7 +454,7 @@ SSE 方式（写入 `claude_desktop_config.json`）：
 
 ## 实测验收
 
-**测试日期：2026-09-15**　｜　环境：Python 3.14.5 + `qwen-turbo` + `text-embedding-v2` + 知识库 12 条　｜　后端：`uvicorn app.main:app` @ `127.0.0.1:8000`
+**测试日期：2026-09-15**　｜　环境：Python 3.14.5 + `qwen-flash` + `text-embedding-v4` + 知识库 12 条　｜　后端：`uvicorn app.main:app` @ `127.0.0.1:8000`
 
 **测试方式**：真实 HTTP 请求（`requests` 直连本地服务），下表「实际结果」均为接口原始返回；相似度与耗时取自响应计时和 `logs/app_2026-09-15.log`。
 

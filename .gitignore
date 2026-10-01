@@ -41,3 +41,7 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# 迁移/改动前的备份（不入库）
+*.bak-*
+data/vectors_bak_v2/

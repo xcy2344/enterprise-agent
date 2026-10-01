@@ -10,7 +10,7 @@ class Config:
 
     # ===== 大模型配置 =====
     DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY")
-    LLM_MODEL = "qwen-turbo"
+    LLM_MODEL = "qwen-flash"
 
     # ===== 大模型调用重试配置 =====
     # 首次调用失败后最多重试次数（总调用次数 = 1 + MAX_RETRIES）
@@ -38,9 +38,9 @@ class Config:
     # ===== 检索质量评估配置 =====
     # 检索结果中的 score 是余弦相似度（0~1，越大越相关）。
     # 最高相似度低于该阈值时，判定为知识库外的问题，直接返回兜底提示、不调用大模型，避免编造答案。
-    # 实测（text-embedding-v2 + 当前知识库）：知识库内问题最高相似度约 0.39~0.77，
-    # 知识库外问题（如今天天气怎么样）最高相似度约 0.05~0.24，故取两者之间偏安全的值。
-    RAG_SCORE_THRESHOLD = 0.30
+    # 实测（text-embedding-v4 + 当前知识库）：知识库内问题最高相似度约 0.58~0.82，
+    # 知识库外问题（如今天天气怎么样）最高相似度约 0.19~0.38，故取两者之间偏安全的值。
+    RAG_SCORE_THRESHOLD = 0.48
 
     # ===== 任务分解配置 =====
     # 是否开启多步任务分解：开启后，包含“对比 / 然后 / 分别 / 以及”这类多诉求的问题会先被
@@ -54,8 +54,8 @@ class Config:
     MCP_AUTH_TOKEN = os.getenv("MCP_AUTH_TOKEN")
 
     # ===== Embedding 配置 =====
-    EMBEDDING_MODEL = "text-embedding-v2"
-    EMBEDDING_DIMENSION = 1536
+    EMBEDDING_MODEL = "text-embedding-v4"
+    EMBEDDING_DIMENSION = 1024
 
     # ===== 知识库配置 =====
     KNOWLEDGE_DIR = "./data/knowledge"
