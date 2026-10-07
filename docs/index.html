@@ -17,7 +17,7 @@ body{margin:0;font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,s
 .header{flex:0 0 auto;height:58px;display:flex;align-items:center;gap:12px;padding:0 22px;background:var(--primary);color:#fff;font-size:18px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.16)}
 .header .badge{font-size:12px;font-weight:400;padding:3px 10px;border-radius:11px;background:rgba(255,255,255,.22)}
 .body{flex:1;display:flex;min-height:0}
-.sidebar{flex:0 0 280px;width:280px;display:flex;flex-direction:column;justify-content:space-between;padding:18px;background:#fff;border-right:1px solid var(--border);overflow-y:auto}
+.sidebar{flex:0 0 280px;width:280px;display:flex;flex-direction:column;justify-content:flex-start;gap:22px;padding:18px;background:#fff;border-right:1px solid var(--border);overflow-y:auto}
 .block{display:flex;flex-direction:column;gap:10px}
 .kb-count{font-size:15px;font-weight:600}
 .kb-count b{color:var(--primary)}
@@ -79,7 +79,7 @@ body{margin:0;font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,s
         <div class="sect">建议演示问题</div>
         <div class="chips" id="chips"></div>
       </div>
-      <div class="footer">
+      <div class="footer" style="margin-top:auto">
         RAG 企业知识问答 Agent：Planner 任务规划 · 多步任务分解 · 检索质量门控 · 多轮记忆 · 流式输出。
       </div>
     </aside>
